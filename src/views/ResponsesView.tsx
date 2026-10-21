@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { FormResponsesData, FormField, ResponseItem } from '../types.js';
 import { api } from '../api.js';
 import { useToast } from '../components/Toast.js';
+import { getPublicFormUrl } from '../utils.js';
 import { 
   ArrowLeft, 
   Search, 
@@ -91,7 +92,7 @@ export const ResponsesView: React.FC<ResponsesViewProps> = ({ formId, onBack }) 
 
   const handleCopyPublicUrl = async () => {
     if (!data?.form.slug) return;
-    const url = `${window.location.origin}/f/${data.form.slug}`;
+    const url = getPublicFormUrl(data.form.slug);
     try {
       await navigator.clipboard.writeText(url);
       setCopiedLink(true);
@@ -157,7 +158,7 @@ export const ResponsesView: React.FC<ResponsesViewProps> = ({ formId, onBack }) 
                 </button>
 
                 <a
-                  href={`/f/${data.form.slug}`}
+                  href={getPublicFormUrl(data.form.slug)}
                   target="_blank"
                   rel="noreferrer"
                   className="px-3 py-1.5 text-xs font-medium text-slate-700 bg-white border border-slate-200 hover:bg-slate-50 rounded-lg transition-colors flex items-center gap-1.5 shadow-xs"

@@ -24,8 +24,9 @@ function MainApp() {
       const pathname = window.location.pathname;
       const searchParams = new URLSearchParams(window.location.search);
 
-      if (pathname.startsWith('/f/')) {
-        const slug = pathname.substring(3).replace(/\/$/, '');
+      const fIndex = pathname.indexOf('/f/');
+      if (fIndex !== -1) {
+        const slug = pathname.substring(fIndex + 3).replace(/\/$/, '');
         if (slug) {
           setPublicSlug(slug);
           return;

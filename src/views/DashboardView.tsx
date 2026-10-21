@@ -19,6 +19,8 @@ import {
   ArrowRight
 } from 'lucide-react';
 
+import { getPublicFormUrl } from '../utils.js';
+
 interface DashboardViewProps {
   onNewForm: () => void;
   onEditForm: (formId: string) => void;
@@ -56,7 +58,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
   const handleCopyLink = async (slug: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    const url = `${window.location.origin}/f/${slug}`;
+    const url = getPublicFormUrl(slug);
     try {
       await navigator.clipboard.writeText(url);
       setCopiedSlug(slug);
@@ -340,7 +342,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                   </button>
 
                   <a
-                    href={`/f/${form.slug}`}
+                    href={getPublicFormUrl(form.slug)}
                     target="_blank"
                     rel="noreferrer"
                     title="Abrir formulario público en nueva pestaña"

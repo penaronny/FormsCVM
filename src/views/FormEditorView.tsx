@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { FormField, FieldType, FormItem } from '../types.js';
 import { api } from '../api.js';
 import { useToast } from '../components/Toast.js';
+import { getPublicFormUrl } from '../utils.js';
 import { 
   ArrowLeft, 
   Save, 
@@ -281,7 +282,7 @@ export const FormEditorView: React.FC<FormEditorViewProps> = ({ formId, onBack, 
   };
 
   const handleCopySlugLink = async (targetSlug: string) => {
-    const url = `${window.location.origin}/f/${targetSlug}`;
+    const url = getPublicFormUrl(targetSlug);
     try {
       await navigator.clipboard.writeText(url);
       setCopiedLink(true);
@@ -702,7 +703,7 @@ export const FormEditorView: React.FC<FormEditorViewProps> = ({ formId, onBack, 
                 <input
                   type="text"
                   readOnly
-                  value={`${window.location.origin}/f/${createdModalData.slug}`}
+                  value={getPublicFormUrl(createdModalData.slug)}
                   className="flex-1 text-xs bg-white border border-slate-200 rounded-lg px-3 py-2 text-slate-700 select-all font-mono"
                 />
                 <button
@@ -718,7 +719,7 @@ export const FormEditorView: React.FC<FormEditorViewProps> = ({ formId, onBack, 
 
             <div className="flex items-center justify-center gap-3">
               <a
-                href={`/f/${createdModalData.slug}`}
+                href={getPublicFormUrl(createdModalData.slug)}
                 target="_blank"
                 rel="noreferrer"
                 className="px-4 py-2 text-xs font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors flex items-center gap-1.5"
