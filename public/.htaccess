@@ -1,10 +1,12 @@
+DirectoryIndex index.html index.php
+
 <IfModule mod_rewrite.c>
   RewriteEngine On
-  # Do not rewrite existing files or directories
+  RewriteBase /forms/
+  RewriteRule ^index\.html$ - [L]
   RewriteCond %{REQUEST_FILENAME} !-f
   RewriteCond %{REQUEST_FILENAME} !-d
-  # Rewrite all other paths to index.html for SPA client-side routing
-  RewriteRule ^ index.html [QSA,L]
+  RewriteRule . /forms/index.html [L]
 </IfModule>
 
 <IfModule mod_mime.c>

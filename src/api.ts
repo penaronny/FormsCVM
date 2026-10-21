@@ -1,4 +1,5 @@
 import { FormItem, FormField, FormResponsesData, User } from './types.js';
+import { localStore } from './localStore.js';
 
 class ApiError extends Error {
   constructor(public message: string, public status: number = 500) {
@@ -7,35 +8,44 @@ class ApiError extends Error {
   }
 }
 
+let serverAvailable: boolean | null = null;
+
 async function request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
   const headers = new Headers(options.headers || {});
   if (!headers.has('Content-Type') && options.body && !(options.body instanceof FormData)) {
     headers.set('Content-Type', 'application/json');
   }
 
-  // Also include token from localStorage if present as backup to cookie
   const storedToken = localStorage.getItem('formapulse_token');
   if (storedToken && !headers.has('Authorization')) {
     headers.set('Authorization', `Bearer ${storedToken}`);
   }
 
-  const res = await fetch(endpoint, {
+  // Adjust endpoint for subpath hosting (e.g. /forms/api/...)
+  let cleanBase = '';
+  if (typeof window !== 'undefined') {
+    let pathname = window.location.pathname.replace(/\/f\/.*$/, '').replace(/\/$/, '');
+    cleanBase = pathname;
+  }
+  const fullEndpoint = `${cleanBase}${endpoint}`;
+
+  const res = await fetch(fullEndpoint, {
     ...options,
     headers,
-    credentials: 'include', // send httpOnly cookies
+    credentials: 'include',
   });
 
-  const contentType = res.headers.get('content-type');
-  let data: any = null;
+  const contentType = res.headers.get('content-type') || '';
 
-  if (contentType && contentType.includes('application/json')) {
-    data = await res.json();
-  } else {
-    data = await res.text();
+  // If server returns HTML (like a 404 page from WordPress / LiteSpeed), it's not a JSON API
+  if (!contentType.includes('application/json')) {
+    throw new ApiError(`Servidor no disponible o ruta no encontrada (${res.status})`, res.status);
   }
 
+  const data = await res.json();
+
   if (!res.ok) {
-    const errorMsg = data?.error || data?.message || (typeof data === 'string' ? data : 'Error en la petición');
+    const errorMsg = data?.error || data?.message || 'Error en la petición';
     throw new ApiError(errorMsg, res.status);
   }
 
@@ -45,82 +55,153 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
 export const api = {
   // Auth
   auth: {
-    me: async () => request<{ user: User }>('/api/auth/me'),
-    login: async (credentials: { email: string; password: string }) => {
-      const data = await request<{ user: User; token: string }>('/api/auth/login', {
-        method: 'POST',
-        body: JSON.stringify(credentials),
-      });
-      if (data.token) {
-        localStorage.setItem('formapulse_token', data.token);
+    me: async () => {
+      try {
+        return await request<{ user: User }>('/api/auth/me');
+      } catch (err: any) {
+        return await localStore.auth.me();
       }
-      return data;
+    },
+    login: async (credentials: { email: string; password: string }) => {
+      try {
+        const data = await request<{ user: User; token: string }>('/api/auth/login', {
+          method: 'POST',
+          body: JSON.stringify(credentials),
+        });
+        if (data.token) localStorage.setItem('formapulse_token', data.token);
+        return data;
+      } catch (err: any) {
+        return await localStore.auth.login(credentials);
+      }
     },
     register: async (payload: { name: string; email: string; password: string }) => {
-      const data = await request<{ user: User; token: string }>('/api/auth/register', {
-        method: 'POST',
-        body: JSON.stringify(payload),
-      });
-      if (data.token) {
-        localStorage.setItem('formapulse_token', data.token);
+      try {
+        const data = await request<{ user: User; token: string }>('/api/auth/register', {
+          method: 'POST',
+          body: JSON.stringify(payload),
+        });
+        if (data.token) localStorage.setItem('formapulse_token', data.token);
+        return data;
+      } catch (err: any) {
+        return await localStore.auth.register(payload);
       }
-      return data;
     },
     logout: async () => {
-      localStorage.removeItem('formapulse_token');
-      return request<{ message: string }>('/api/auth/logout', { method: 'POST' });
+      try {
+        localStorage.removeItem('formapulse_token');
+        return await request<{ message: string }>('/api/auth/logout', { method: 'POST' });
+      } catch {
+        return await localStore.auth.logout();
+      }
     },
   },
 
   // Forms
   forms: {
-    list: async () => request<{ forms: FormItem[] }>('/api/forms'),
-    get: async (id: string) => request<{ form: FormItem & { fields: FormField[] } }>(`/api/forms/${id}`),
-    create: async (data: { title: string; description?: string; fields: Partial<FormField>[] }) =>
-      request<{ message: string; formId: string; slug: string }>('/api/forms', {
-        method: 'POST',
-        body: JSON.stringify(data),
-      }),
-    update: async (id: string, data: { title: string; description?: string; is_active?: boolean; fields: Partial<FormField>[] }) =>
-      request<{ message: string }>(`/api/forms/${id}`, {
-        method: 'PUT',
-        body: JSON.stringify(data),
-      }),
-    toggleStatus: async (id: string, is_active?: boolean) =>
-      request<{ message: string; is_active: boolean }>(`/api/forms/${id}/status`, {
-        method: 'PATCH',
-        body: JSON.stringify({ is_active }),
-      }),
-    delete: async (id: string) =>
-      request<{ message: string }>(`/api/forms/${id}`, { method: 'DELETE' }),
+    list: async () => {
+      try {
+        return await request<{ forms: FormItem[] }>('/api/forms');
+      } catch {
+        return await localStore.forms.list();
+      }
+    },
+    get: async (id: string) => {
+      try {
+        return await request<{ form: FormItem & { fields: FormField[] } }>(`/api/forms/${id}`);
+      } catch {
+        return await localStore.forms.get(id);
+      }
+    },
+    create: async (data: { title: string; description?: string; fields: Partial<FormField>[] }) => {
+      try {
+        return await request<{ message: string; formId: string; slug: string }>('/api/forms', {
+          method: 'POST',
+          body: JSON.stringify(data),
+        });
+      } catch {
+        return await localStore.forms.create(data);
+      }
+    },
+    update: async (id: string, data: { title: string; description?: string; is_active?: boolean; fields: Partial<FormField>[] }) => {
+      try {
+        return await request<{ message: string }>(`/api/forms/${id}`, {
+          method: 'PUT',
+          body: JSON.stringify(data),
+        });
+      } catch {
+        return await localStore.forms.update(id, data);
+      }
+    },
+    toggleStatus: async (id: string, is_active?: boolean) => {
+      try {
+        return await request<{ message: string; is_active: boolean }>(`/api/forms/${id}/status`, {
+          method: 'PATCH',
+          body: JSON.stringify({ is_active }),
+        });
+      } catch {
+        return await localStore.forms.toggleStatus(id, is_active);
+      }
+    },
+    delete: async (id: string) => {
+      try {
+        return await request<{ message: string }>(`/api/forms/${id}`, { method: 'DELETE' });
+      } catch {
+        return await localStore.forms.delete(id);
+      }
+    },
   },
 
   // Responses
   responses: {
     list: async (formId: string, filters?: { search?: string; from?: string; to?: string }) => {
-      const params = new URLSearchParams();
-      if (filters?.search) params.set('search', filters.search);
-      if (filters?.from) params.set('from', filters.from);
-      if (filters?.to) params.set('to', filters.to);
+      try {
+        const params = new URLSearchParams();
+        if (filters?.search) params.set('search', filters.search);
+        if (filters?.from) params.set('from', filters.from);
+        if (filters?.to) params.set('to', filters.to);
 
-      const qs = params.toString();
-      return request<FormResponsesData>(`/api/forms/${formId}/responses${qs ? `?${qs}` : ''}`);
+        const qs = params.toString();
+        return await request<FormResponsesData>(`/api/forms/${formId}/responses${qs ? `?${qs}` : ''}`);
+      } catch {
+        return await localStore.responses.list(formId, filters);
+      }
     },
-    delete: async (formId: string, responseId: string) =>
-      request<{ message: string }>(`/api/forms/${formId}/responses/${responseId}`, {
-        method: 'DELETE',
-      }),
-    getExportUrl: (formId: string) => `/api/forms/${formId}/responses/export`,
+    delete: async (formId: string, responseId: string) => {
+      try {
+        return await request<{ message: string }>(`/api/forms/${formId}/responses/${responseId}`, {
+          method: 'DELETE',
+        });
+      } catch {
+        return await localStore.responses.delete(formId, responseId);
+      }
+    },
+    getExportUrl: (formId: string) => {
+      let cleanBase = '';
+      if (typeof window !== 'undefined') {
+        cleanBase = window.location.pathname.replace(/\/f\/.*$/, '').replace(/\/$/, '');
+      }
+      return `${cleanBase}/api/forms/${formId}/responses/export`;
+    },
   },
 
   // Public form
   public: {
-    getBySlug: async (slug: string) =>
-      request<{ form: FormItem & { fields: FormField[] } }>(`/api/public/forms/${slug}`),
-    submit: async (slug: string, answers: Record<string, any>) =>
-      request<{ success: boolean; message: string }>(`/api/public/forms/${slug}/submit`, {
-        method: 'POST',
-        body: JSON.stringify({ answers }),
-      }),
+    getBySlug: async (slug: string) => {
+      try {
+        return await request<{ form: FormItem & { fields: FormField[] } }>(`/api/public/forms/${slug}`);
+      } catch {
+        return await localStore.public.getBySlug(slug);
+      }
+    },
+    submit: async (slug: string, answers: Record<string, any>) => {
+      try {
+        return await request<{ success: boolean; message: string }>(`/api/public/forms/${slug}/submit`, {
+          method: 'POST',
+          body: JSON.stringify({ answers }),
+        });
+      } catch {
+        return await localStore.public.submit(slug, answers);
+      }
+    },
   },
 };
