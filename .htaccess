@@ -2,11 +2,11 @@ DirectoryIndex index.html index.php
 
 <IfModule mod_rewrite.c>
   RewriteEngine On
-  RewriteBase /forms/
-  RewriteRule ^index\.html$ - [L]
+  # Do not rewrite existing files or directories
   RewriteCond %{REQUEST_FILENAME} !-f
   RewriteCond %{REQUEST_FILENAME} !-d
-  RewriteRule . /forms/index.html [L]
+  # Rewrite all other paths to index.html in the current folder
+  RewriteRule ^ index.html [QSA,L]
 </IfModule>
 
 <IfModule mod_mime.c>
