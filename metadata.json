@@ -1,0 +1,6 @@
+{
+  "name": "FormaPulse - Gestor de Formularios",
+  "description": "Plataforma corporativa para crear formularios dinámicos, compartirlos con enlace seguro y gestionar respuestas en tiempo real.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
