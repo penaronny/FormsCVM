@@ -3,6 +3,5 @@ deployment:
   tasks:
     - export DEPLOYPATH=${HOME}/public_html/formularios/
     - /bin/mkdir -p $DEPLOYPATH
-    - /bin/cp -R dist/* $DEPLOYPATH
-    - /bin/cp public/.htaccess $DEPLOYPATH || /bin/cp .htaccess $DEPLOYPATH || true
-
+    - /bin/cp dist/index.html $DEPLOYPATH
+    - /bin/cp dist/.htaccess $DEPLOYPATH || /bin/cp public/.htaccess $DEPLOYPATH || true
